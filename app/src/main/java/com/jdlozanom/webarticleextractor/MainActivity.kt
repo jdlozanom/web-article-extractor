@@ -8,16 +8,17 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.webkit.URLUtil
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bitly.Bitly
 import com.bitly.Response
+import com.jdlozanom.webarticleextractor.model.NewsProvider
+import com.squareup.picasso.Picasso
 import kotlinx.android.synthetic.main.activity_main.*
 import org.jsoup.Jsoup
 
 
 class MainActivity : AppCompatActivity() {
-    private val BITLY_TOKEN = ""
-
     private var loadingCount = 0
 
     private var headline = ""
@@ -28,11 +29,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Bitly.initialize(this, BITLY_TOKEN)
-
         setContentView(R.layout.activity_main)
         extractButton.setOnClickListener { parseURL() }
-        copyButton.setOnClickListener { copyToClipboard() }
+        copyTextButton.setOnClickListener { copyToClipboard() }
 
 
     }
@@ -41,8 +40,14 @@ class MainActivity : AppCompatActivity() {
         val urlString = urlEditText.text.toString()
         if (!URLUtil.isValidUrl(urlString)) return
 
+        val selectedProvider = NewsProvider(
+            "",
+            "", "", "", "",
+            "", "", "", ""
+        )
 
         class GetArticleTask : AsyncTask<Void, Void, Void>() {
+            var imageUrl = ""
 
             override fun onPreExecute() {
                 super.onPreExecute()
@@ -52,9 +57,11 @@ class MainActivity : AppCompatActivity() {
             override fun doInBackground(vararg arg0: Void): Void? {
                 val doc = Jsoup.connect(urlString).get()
 
-                val headlineDoc = doc.select("")
-                val subtitleDoc = doc.select("")
-                val articleBodyDoc = doc.select("")
+                val headlineDoc = doc.select(selectedProvider.headLineCss)
+                val subtitleDoc = doc.select(selectedProvider.subtitleCss)
+                val articleBodyDoc = doc.select(selectedProvider.articleCss)
+                imageUrl =
+                    doc.selectFirst(selectedProvider.imageCss).absUrl(selectedProvider.imageSrcAttr)
 
                 if (headlineDoc.size > 0) headline = headlineDoc[0].wholeText()
                 if (subtitleDoc.size > 0) subtitle = subtitleDoc[0].wholeText()
@@ -67,6 +74,10 @@ class MainActivity : AppCompatActivity() {
                 headlineTextView.text = headline
                 subheadlineTextView.text = subtitle
                 articleTextView.text = articleBody
+                if (imageUrl != "") {
+                    Picasso.get().load(imageUrl).into(imageView)
+                }
+
                 removeLoadingIndicator()
             }
 
@@ -101,6 +112,9 @@ class MainActivity : AppCompatActivity() {
         val clip: ClipData =
             ClipData.newPlainText("extract", headline + subtitle + articleBody + link)
         clipboard.setPrimaryClip(clip)
+
+        Toast.makeText(this@MainActivity, getString(R.string.copied), Toast.LENGTH_SHORT).show()
+
 
     }
 
